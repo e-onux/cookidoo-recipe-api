@@ -1,4 +1,5 @@
 import { AppError, notFound } from './errors.js';
+import { decodeImage, uploadRecipeImage } from './image.js';
 
 const ID_PATTERN = /^[0-9A-HJKMNP-TV-Z]{26}$/;
 const FULL_RECIPE = 'application/vnd.vorwerk.customer-recipe.full+json';
@@ -104,6 +105,7 @@ function mapRecipe(recipe, baseUrl, locale) {
     id: recipe.recipeId,
     url: `${baseUrl}/created-recipes/${locale}/${recipe.recipeId}`,
     title: content.name ?? '',
+    image: content.image ?? null,
     ingredients: (content.ingredients ?? []).map(item => item.text ?? '').filter(Boolean),
     steps: details.map(step => step.text),
     stepDetails: details,
@@ -263,6 +265,25 @@ export class CookidooService {
     return this.browser.run(async page => {
       await this.request(page, 'DELETE', this.recipePath(id));
       return { id, deleted: true };
+    });
+  }
+
+  async uploadImage(id, input) {
+    const recipePath = this.recipePath(id);
+    const file = decodeImage(input);
+    return this.browser.run(async page => {
+      const before = await this.request(page, 'GET', recipePath);
+      if (before.workStatus === 'PUBLIC' && !input.imageOwnedByUser) {
+        throw new AppError(400, 'IMAGE_OWNERSHIP_REQUIRED',
+          'Paylaşılan tarif görseli için imageOwnedByUser: true beyanı gerekli.');
+      }
+      await uploadRecipeImage(page, `${this.browser.baseUrl}${recipePath}/edit`,
+        recipePath, file, input.imageOwnedByUser);
+      const saved = await this.request(page, 'GET', recipePath);
+      if (!saved.recipeContent?.image) {
+        throw new AppError(502, 'IMAGE_UPLOAD_NOT_VERIFIED', 'Görsel kaydı doğrulanamadı.');
+      }
+      return mapRecipe(saved, this.browser.baseUrl, this.browser.locale);
     });
   }
 }

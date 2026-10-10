@@ -53,6 +53,11 @@ const patchSchema = z.object(recipeFields).partial().strict()
   .refine(value => Object.keys(value).length > 0, 'En az bir alan gerekli.')
   .refine(value => value.servingUnit === undefined || value.servings !== undefined,
     'servingUnit ile servings birlikte gönderilmeli.');
+const imageSchema = z.object({
+  imageBase64: z.string().min(1).max(13981016),
+  mimeType: z.enum(['image/png', 'image/jpeg']),
+  imageOwnedByUser: z.boolean().default(false),
+}).strict();
 
 function asyncRoute(handler) {
   return (req, res, next) => Promise.resolve(handler(req, res)).catch(next);
@@ -61,7 +66,6 @@ function asyncRoute(handler) {
 export function createApp(service, { token } = {}) {
   const app = express();
   app.disable('x-powered-by');
-  app.use(express.json({ limit: '1mb' }));
   if (token) {
     app.use((req, res, next) => {
       const supplied = req.get('authorization')?.replace(/^Bearer\s+/i, '') || '';
@@ -69,6 +73,11 @@ export function createApp(service, { token } = {}) {
       next();
     });
   }
+  app.post('/recipes/:id/image', express.json({ limit: '14mb' }), asyncRoute(async (req, res) => {
+    const id = validateRecipeId(req.params.id);
+    res.json(await service.uploadImage(id, imageSchema.parse(req.body)));
+  }));
+  app.use(express.json({ limit: '1mb' }));
 
   app.get('/health', (_req, res) => res.json({ ok: true }));
   app.post('/auth/login', asyncRoute(async (_req, res) => {
@@ -94,6 +103,9 @@ export function createApp(service, { token } = {}) {
   }));
 
   app.use((error, _req, res, _next) => {
+    if (error.type === 'entity.too.large') {
+      return res.status(413).json({ error: 'PAYLOAD_TOO_LARGE', message: 'İstek gövdesi çok büyük.' });
+    }
     if (error instanceof SyntaxError && error.status === 400 && 'body' in error) {
       return res.status(400).json({ error: 'INVALID_JSON', message: 'Geçerli JSON gönderin.' });
     }

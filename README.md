@@ -30,6 +30,7 @@ Geçerli bir oturum profili zaten varsa görünür tarayıcı açmadan çalışt
 | `POST` | `/recipes` | Tarif oluşturur |
 | `GET` | `/recipes/:id` | Tarif ayrıntısını okur |
 | `PATCH` | `/recipes/:id` | Verilen alanları günceller |
+| `POST` | `/recipes/:id/image` | PNG veya JPEG kapak görseli yükler |
 | `DELETE` | `/recipes/:id` | Tarifi siler |
 | `GET` | `/health` | API'nin çalıştığını söyler |
 
@@ -90,7 +91,26 @@ curl -X DELETE http://127.0.0.1:8787/recipes/RECIPE_ID
 
 `anchor` adım metninde yoksa istek Cookidoo'ya değişiklik göndermeden `ANNOTATION_ANCHOR_NOT_FOUND` hatası verir. Düz metin adımlar çalışmaya devam eder fakat cihaz işlemi içermez. `PATCH` ile verilen `ingredients` veya `steps` dizisi ilgili listenin tamamının yerine geçer; verilmeyen alanlar korunur. Meta bilgiler ve adımlar Cookidoo'nun gerektirdiği şekilde iki ayrı `PATCH` isteğiyle kaydedilir. Oluşturma sonrasında hata oluşursa `PARTIAL_CREATE` tarif kimliğini içerir.
 
-Tarif yanıtında `id`, `url`, `title`, `ingredients`, düz metin `steps`, cihaz işaretlerini içeren `stepDetails`, süreler, porsiyon ve tarihler bulunur. Cookidoo hesabındaki içerik ayrıca yerel bir veritabanına kopyalanmaz.
+Tarif yanıtında `id`, `url`, `title`, `image`, `ingredients`, düz metin `steps`, cihaz işaretlerini içeren `stepDetails`, süreler, porsiyon ve tarihler bulunur. `image`, Cookidoo'nun dönüşüm yer tutucusu içerebilen görsel adresidir; resim yoksa `null` döner. Cookidoo hesabındaki içerik ayrıca yerel bir veritabanına kopyalanmaz.
+
+## Kapak görseli yükleme
+
+Tarif oluşturulduktan sonra `POST /recipes/:id/image` çağırın. Gövde, data URL öneki olmadan `imageBase64`, `image/png` veya `image/jpeg` değerinde `mimeType` ve isteğe bağlı `imageOwnedByUser` alanını kabul eder. Dosya en fazla 10 MiB olabilir. Dosya yolları ve uzak URL'ler kabul edilmez.
+
+Yerel dosyadan istek gövdesi hazırlama örneği:
+
+```bash
+node --input-type=module -e 'import {readFile,writeFile} from "node:fs/promises"; await writeFile("/tmp/cookidoo-image.json", JSON.stringify({imageBase64:(await readFile("cover.png")).toString("base64"), mimeType:"image/png", imageOwnedByUser:true}));'
+curl -X POST http://127.0.0.1:8787/recipes/RECIPE_ID/image \
+  -H 'Content-Type: application/json' \
+  --data-binary @/tmp/cookidoo-image.json
+```
+
+`API_TOKEN` etkinse normal API çağrılarındaki Authorization başlığını ekleyin. `imageOwnedByUser: true`, özellikle paylaşılmış tariflerde Cookidoo'nun istediği görsel kullanım hakkı beyanıdır; yalnızca kullanım hakkınız olan görseller için gönderin.
+
+Yükleme mevcut Cookidoo oturumunu kullanır; düzenleme sayfasındaki Cloudinary bileşenine dosyayı verir, varsayılan kırpmayı onaylar ve kayıt sonrasında tarifi yeniden okur. Almanca ve İngilizce kırpma düğmeleri desteklenir. Diğer dillerde arayüz uyarlaması gerekebilir. Manuel kırpma koordinatları desteklenmez. JSON alanları ve mevcut tarif adımları korunur.
+
+Görsel kaydı doğrulanamazsa `IMAGE_UPLOAD_NOT_VERIFIED`, dosya biçimi geçersizse `INVALID_IMAGE`, boyut uygun değilse `INVALID_IMAGE_SIZE` döner. Yükleme bir ağ hatasıyla kesilirse tarifteki `image` alanını okuyarak kaydı kontrol edin; dosya Cookidoo'ya gönderilmiş olabilir.
 
 ## Doğrulama
 

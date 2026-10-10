@@ -42,7 +42,7 @@ export class CookidooBrowser {
   }
 
   async ensureAuthenticated(page) {
-    await page.goto(this.listUrl, { waitUntil: 'domcontentloaded' });
+    await page.goto(this.listUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
     const listHeading = page.getByRole('heading', { name: /Meine Kreationen|Created recipes/i });
     if (await listHeading.isVisible().catch(() => false)) return;
 
