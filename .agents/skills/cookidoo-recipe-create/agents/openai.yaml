@@ -1,0 +1,6 @@
+interface:
+  display_name: "Görselli Cookidoo Tarifi"
+  short_description: "Thermomix modları ve görseliyle tarif oluştur"
+  default_prompt: "$cookidoo-recipe-create ile elimdeki malzemelere uygun, cihaz modları ve kapak görseli bulunan bir Cookidoo tarifi hazırla ve hesabıma ekle."
+policy:
+  allow_implicit_invocation: true

@@ -1,3 +1,4 @@
+import { modeSchema } from './modes.js';
 import { AppError, notFound } from './errors.js';
 import { decodeImage, uploadRecipeImage } from './image.js';
 
@@ -57,6 +58,14 @@ function buildInstructions(steps) {
         position: positionFor(input.text, operation, stepIndex),
       });
     }
+    for (const inputMode of input.modes ?? []) {
+      const mode = modeSchema.parse(inputMode);
+      const { name, anchor, occurrence, timeSeconds, temperature, temperatureUnit, ...settings } = mode;
+      const data = { ...settings };
+      if (timeSeconds !== undefined) data.time = timeSeconds;
+      if (temperature !== undefined) data.temperature = { value: String(temperature), unit: temperatureUnit ?? 'C' };
+      annotations.push({ type: 'MODE', name, data, position: positionFor(input.text, mode, stepIndex) });
+    }
     for (const link of input.ingredientLinks ?? []) {
       annotations.push({
         type: link.missed ? 'MISSED_INGREDIENT' : 'INGREDIENT',
@@ -83,6 +92,15 @@ function stepDetails(instructions = []) {
       temperatureUnit: item.data?.temperature?.unit,
       speed: item.data?.speed,
       direction: item.data?.direction ?? 'CW',
+    })),
+    modes: (step.annotations ?? []).filter(item => item.type === 'MODE').map(item => ({
+      anchor: (step.text ?? '').slice(item.position?.offset ?? 0,
+        (item.position?.offset ?? 0) + (item.position?.length ?? 0)),
+      name: item.name?.toUpperCase(),
+      timeSeconds: item.data?.time,
+      temperature: item.data?.temperature?.value,
+      temperatureUnit: item.data?.temperature?.unit,
+      ...Object.fromEntries(Object.entries(item.data ?? {}).filter(([key]) => !['time', 'temperature'].includes(key))),
     })),
     ingredientLinks: (step.annotations ?? [])
       .filter(item => item.type === 'INGREDIENT' || item.type === 'MISSED_INGREDIENT')

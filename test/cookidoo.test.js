@@ -82,3 +82,31 @@ test('bulunmayan açıklama işaretini tarif oluşturmadan reddeder', async () =
   }), error => error.code === 'ANNOTATION_ANCHOR_NOT_FOUND');
   assert.equal(calls.length, 0);
 });
+
+test('DOUGH modunu gerçek MODE olarak kaydeder ve yeniden okur', async () => {
+  const text = '3 dk/Hamur yoğurma modunda yoğurun.';
+  const annotation = { type: 'MODE', name: 'DOUGH', data: { time: 180 }, position: { offset: 0, length: 18 } };
+  const recipe = { recipeId: id, recipeContent: { name: 'Ekmek', instructions: [{ type: 'STEP', text, annotations: [{ ...annotation, name: "dough" }] }] } };
+  const { browser, calls } = fakeBrowser([{ body: recipe }, { body: recipe }]);
+  const saved = await new CookidooService(browser).update(id, {
+    steps: [{ text, modes: [{ name: 'DOUGH', anchor: '3 dk/Hamur yoğurma', timeSeconds: 180 }] }],
+  });
+  assert.deepEqual(calls[0].data.instructions[0].annotations[0], annotation);
+  assert.equal(saved.stepDetails[0].modes[0].name, 'DOUGH');
+  assert.equal(saved.stepDetails[0].modes[0].timeSeconds, 180);
+  assert.equal(saved.stepDetails[0].modes[0].anchor, '3 dk/Hamur yoğurma');
+});
+
+test('uydurulmuş mod veya yoğurmada ısıtma ağ isteğinden önce reddedilir', async () => {
+  for (const mode of [
+    { name: 'FAKE', timeSeconds: 180 },
+    { name: 'DOUGH', timeSeconds: 180, temperature: 37 },
+    { name: 'DOUGH', timeSeconds: 0 },
+  ]) {
+    const { browser, calls } = fakeBrowser([]);
+    await assert.rejects(() => new CookidooService(browser).create({
+      title: 'Test', ingredients: [], steps: [{ text: 'yoğurun', modes: [{ anchor: 'yoğurun', ...mode }] }],
+    }));
+    assert.equal(calls.length, 0);
+  }
+});

@@ -123,3 +123,19 @@ Testler HTTP sözleşmesini, girdi doğrulamasını ve Cookidoo'ya gönderilen `
 ## Uygulama yaklaşımı
 
 Cookidoo'nun giriş sayfası Playwright'ın kalıcı profilinde açılır. Giriş tamamlandıktan sonra Playwright `APIRequestContext`, aynı profilin çerezleriyle `/created-recipes/{locale}` uç noktalarını çağırır. Oturum çerezleri yalnızca `.local/browser-profile` içinde tutulur; `.gitignore` bunların projeye eklenmesini engeller. Uygulama Cookidoo e-posta adresini veya şifresini istemez.
+
+## Görselli tarif oluşturma becerisi ve özel modlar
+
+Beceri repo ile birlikte gelir; global kurulum gerekmez. `AGENTS.md`, tarif işlemlerinde bu becerinin okunmasını zorunlu kılar.
+
+Repo becerisi: [.agents/skills/cookidoo-recipe-create/SKILL.md](.agents/skills/cookidoo-recipe-create/SKILL.md). `$cookidoo-recipe-create` ile tarif uyarlama, gerçek cihaz modu işaretleri ve kapak görseli aktarımı birlikte yürütülür. Kaynaklı mod rehberi becerinin `references/` dizinindedir.
+
+Adım nesnesi `modes` dizisini de kabul eder. Örneğin:
+
+```json
+{"text":"3 dk/Hamur yoğurma modunda yoğurun.","modes":[{"anchor":"3 dk/Hamur yoğurma","name":"DOUGH","timeSeconds":180}]}
+```
+
+Bu, `MODE/DOUGH` olarak kaydedilir; normal `TTS` veya mod adının yalnızca metinde yazılmasıyla aynı değildir. Yeniden okunan yanıt `stepDetails[].modes` alanını içerir. Desteklenen veri sözleşmeleri `src/modes.js` içindedir: `DOUGH`, `BLEND`, `TURBO`, `WARM_UP`, `RICE_COOKER`, `STEAMING`, `BROWNING`. Bunlar canlı editör betiğinde gözlenen kodlardır; model/hesap erişimi ayrıca doğrulanmalıdır. Şimdilik buhar için `Varoma`, kavurma gücü için `Gentle` alt kümesi uygulanır. Diğer Thermomix modlarının kullanım rehberi vardır; doğrulanmamış API kodları gönderilmez.
+
+Porsiyon birimi arayüz metni yerine API kodudur: ekmek için `piece`, yemek için `portion` kullanın; `adet` Cookidoo tarafından reddedilir.

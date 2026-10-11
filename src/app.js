@@ -1,3 +1,4 @@
+import { modeSchema } from './modes.js';
 import express from 'express';
 import { z, ZodError } from 'zod';
 import { AppError } from './errors.js';
@@ -31,6 +32,7 @@ const stepSchema = z.union([
   z.object({
     text: text(5000),
     operations: z.array(operationSchema).max(20).optional(),
+    modes: z.array(modeSchema).max(20).optional(),
     ingredientLinks: z.array(ingredientLinkSchema).max(50).optional(),
   }).strict(),
 ]);

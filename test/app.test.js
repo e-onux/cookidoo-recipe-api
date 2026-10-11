@@ -89,3 +89,16 @@ test('resim uç noktası kimlik, tür, beyan ve kimlik doğrulamayı denetler', 
   assert.equal((await request('POST', `/recipes/${id}/image`, input, 'wrong')).status, 401);
   assert.equal((await request('POST', `/recipes/${id}/image`, { ...input, path: '/etc/passwd' })).status, 400);
 });
+
+test('MODE adımını HTTP üzerinden geçirir ve yanlış parametreyi kayıttan önce reddeder', async () => {
+  const step = { text: '3 dk yoğurun.', modes: [{ anchor: '3 dk', name: 'DOUGH', timeSeconds: 180 }] };
+  const created = await request('POST', '/recipes', { title: 'Ekmek', steps: [step] });
+  assert.equal(created.status, 201);
+  assert.deepEqual(created.body.steps, [step]);
+  const count = calls.length;
+  const invalid = await request('POST', '/recipes', {
+    title: 'Ekmek', steps: [{ ...step, modes: [{ ...step.modes[0], temperature: 37 }] }],
+  });
+  assert.equal(invalid.status, 400);
+  assert.equal(calls.length, count);
+});
